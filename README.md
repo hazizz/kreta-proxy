@@ -1,5 +1,6 @@
 
 # Kreta proxy
+![](https://api.travis-ci.com/hazizz/kreta-proxy.svg?branch=master)
 
 This is a proxy for [E-Kréta](https://ekreta.hu/) written in rust
 
@@ -39,7 +40,7 @@ cargo test
 
 ## Built With
 
-* [Actix-web](https://actix.rs/)
+* [Actix](https://actix.rs/)
 * [Reqwest](https://docs.rs/reqwest/)
 
 ## License

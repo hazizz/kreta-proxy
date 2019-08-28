@@ -1,0 +1,10 @@
+os:
+  - linux
+language: rust
+rust:
+  - stable
+cache:
+  - apt
+
+script:
+  - cargo test --verbose --release
