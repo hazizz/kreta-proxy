@@ -7,7 +7,7 @@ cache:
   - apt
 
 script:
-  - cargo test --verbose --release
+  - cargo test --verbose
 
 after_success:
   - chmod +x discord.sh

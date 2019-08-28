@@ -38,6 +38,11 @@ export SCHOOL_URL=url
 cargo test
 ```
 
+## Usage
+
+The proxy has non protected end points that can be accessed with HTTP.
+Documentation can be found on [postman](https://documenter.getpostman.com/view/5139955/SVfQQoeM).
+
 ## Built With
 
 * [Actix](https://actix.rs/)
