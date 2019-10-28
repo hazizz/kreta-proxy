@@ -1,21 +1,21 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Authentication{
+pub struct Authentication {
     pub access_token: String,
     token_type: String,
     expires_in: u16,
-    refresh_token: String
+    refresh_token: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
-pub struct School{
+pub struct School {
     institute_id: u32,
     institute_code: String,
     name: String,
     url: String,
-    city: String
+    city: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -56,11 +56,11 @@ pub fn refine_schedule(unrefined: UnrefinedLesson) -> Lesson {
         stand_in: unrefined.teacher.contains("Helyettes"),
         class_name: unrefined.class_group,
         teacher: {
-            if unrefined.teacher.contains("Helyettes"){
+            if unrefined.teacher.contains("Helyettes") {
                 let words: Vec<&str> = unrefined.teacher.split(":").collect();
                 words.get(1).expect("Expected a TEACHER after split")
                     .trim().to_string()
-            }else{
+            } else {
                 unrefined.teacher
             }
         },
@@ -124,9 +124,9 @@ pub fn refine_grades(unrefined: UnrefinedGrade) -> Grade {
     Grade {
         subject: unrefined.subject.unwrap_or("-".to_string()),
         grade_type: unrefined.r#type,
-        grade: if unrefined.number_value == 0{
+        grade: if unrefined.number_value == 0 {
             unrefined.value
-        }else {
+        } else {
             format!("{}", unrefined.number_value)
         },
         date: {
@@ -140,7 +140,7 @@ pub fn refine_grades(unrefined: UnrefinedGrade) -> Grade {
         weight: {
             unrefined.weight.unwrap_or("0".to_string()).replace("%", "").parse().unwrap_or(0)
         },
-        topic: unrefined.theme.unwrap_or("-".to_string())
+        topic: unrefined.theme.unwrap_or("-".to_string()),
     }
 }
 
@@ -162,8 +162,8 @@ pub struct Average {
     difference: f64,
 }
 
-pub fn refine_average(average: UnrefinedAverage) -> Average{
-    Average{
+pub fn refine_average(average: UnrefinedAverage) -> Average {
+    Average {
         subject: average.subject.clone(),
         grade: average.value,
         class_grade: average.class_value,
@@ -200,7 +200,10 @@ pub fn refine_note(unrefined: UnrefinedNote) -> Note {
         title: unrefined.title,
         content: unrefined.content,
         teacher: unrefined.teacher,
-        creation_date: unrefined.creating_time,
+        creation_date: {
+            let words: Vec<&str> = unrefined.creating_time.split("T").collect();
+            words.get(0).expect("Expected a date before the T").to_string()
+        },
     }
 }
 

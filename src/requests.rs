@@ -1,8 +1,9 @@
 use reqwest::header::{HeaderMap, HeaderValue};
-use crate::resources::*;
-use crate::*;
 
-pub fn create_token(url: &String, username: String, password: String) -> Result<Authentication, actix_web::Error>{
+use crate::*;
+use crate::resources::*;
+
+pub fn create_token(url: &str, username: &str, password: &str) -> Result<Authentication, HazizzError> {
     let body = format!("institute_code={}&userName={}&password={}&grant_type=password&client_id=919e0c1c-76a2-4646-a2fb-7085bbbf3c56", url, username, password);
 
     let url = format!("https://{}.e-kreta.hu/idp/api/v1/Token", url);
@@ -10,13 +11,12 @@ pub fn create_token(url: &String, username: String, password: String) -> Result<
 
     let resp: Authentication = client.get(&url)
         .body(body)
-        .send().map_err(create_client_error)?
-        .json().map_err(create_json_error)?;
-
+        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
+        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
     Ok(resp)
 }
 
-pub fn get_schools() -> Result<Vec<School>, actix_web::Error>{
+pub fn get_schools() -> Result<Vec<School>, HazizzError> {
     let mut headers = HeaderMap::new();
     headers.append("apiKey", HeaderValue::from_static("7856d350-1fda-45f5-822d-e1a2f3f1acf0"));
 
@@ -26,21 +26,35 @@ pub fn get_schools() -> Result<Vec<School>, actix_web::Error>{
         .headers(headers);
 
     let schools: Vec<School> = request
-        .send().map_err(create_client_error)?
-        .json().map_err(create_json_error)?;
+        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
+        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
 
     Ok(schools)
 }
 
+pub fn get_schedule_v2(token: &str, url: &str, from_date: &str, to_date: &str)
+                       -> Result<BTreeMap<String, Vec<Lesson>>, HazizzError> {
+    let lessons: Vec<Lesson> = get_schedule(token, &url, from_date, to_date)?;
+    let mut lessons_sorted: BTreeMap<String, Vec<Lesson>> = BTreeMap::new();
 
-pub fn get_schedule(token: String, url: &String, from_date: String, to_date: String) -> Result<Vec<Lesson>, actix_web::Error>{
+    for lesson in lessons {
+        let date = NaiveDate::parse_from_str(&lesson.date, "%Y-%m-%d").unwrap();
+        let week_number: String = format!("{}", date.weekday().num_days_from_monday());
+        let entry = lessons_sorted.entry(week_number).or_insert(Vec::new());
+        entry.push(lesson);
+    }
+
+    Ok(lessons_sorted)
+}
+
+pub fn get_schedule(token: &str, url: &str, from_date: &str, to_date: &str) -> Result<Vec<Lesson>, HazizzError> {
     let url = format!("https://{}.e-kreta.hu/mapi/api/v1/Lesson?fromDate={}&toDate={}", url, from_date, to_date);
     let client = reqwest::Client::new();
 
     let resp: Vec<UnrefinedLesson> = client.get(&url)
         .bearer_auth(token)
-        .send().map_err(create_client_error)?
-        .json().map_err(create_json_error)?;
+        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
+        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
 
     let mut lessons: Vec<Lesson> = Vec::new();
 
@@ -53,7 +67,7 @@ pub fn get_schedule(token: String, url: &String, from_date: String, to_date: Str
 }
 
 
-pub fn get_grades(token: String, url: &String) -> Result<BTreeMap<String, Vec<Grade>>, actix_web::Error>{
+pub fn get_grades(token: &str, url: &str) -> Result<BTreeMap<String, Vec<Grade>>, HazizzError> {
     let mut grades: BTreeMap<String, Vec<Grade>> = BTreeMap::new();
     let mut subjects: Vec<String> = Vec::new();
 
@@ -68,14 +82,14 @@ pub fn get_grades(token: String, url: &String) -> Result<BTreeMap<String, Vec<Gr
         vec.push(refined);
     }
 
-    for (_, val) in grades.iter_mut(){
+    for (_, val) in grades.iter_mut() {
         val.sort_by(|a, b| a.date.cmp(&b.date));
     }
 
     Ok(grades)
 }
 
-pub fn get_notes(token: String, url: &String) -> Result<Vec<Note>, actix_web::Error>{
+pub fn get_notes(token: &str, url: &str) -> Result<Vec<Note>, HazizzError> {
     let mut notes: Vec<Note> = Vec::new();
 
     let profile = get_profile(token, &url)?;
@@ -88,7 +102,7 @@ pub fn get_notes(token: String, url: &String) -> Result<Vec<Note>, actix_web::Er
     Ok(notes)
 }
 
-pub fn get_averages(token: String, url: &String) -> Result<Vec<Average>, actix_web::Error>{
+pub fn get_averages(token: &str, url: &str) -> Result<Vec<Average>, HazizzError> {
     let mut averages: Vec<Average> = Vec::new();
 
     let profile = get_profile(token, &url)?;
@@ -101,17 +115,17 @@ pub fn get_averages(token: String, url: &String) -> Result<Vec<Average>, actix_w
     Ok(averages)
 }
 
-fn get_profile(token: String, url: &String) -> Result<UnrefinedProfile, actix_web::Error>{
+fn get_profile(token: &str, url: &str) -> Result<UnrefinedProfile, HazizzError> {
     let url = format!("https://{}.e-kreta.hu/mapi/api/v1/Student", url);
     let client = reqwest::Client::new();
     let profile: UnrefinedProfile = client.get(&url)
         .bearer_auth(token)
-        .send().map_err(create_client_error)?
-        .json().map_err(create_json_error)?;
+        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
+        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
     return Ok(profile);
 }
 
-pub fn get_tasks(token: String, url: &String, from_date: String, to_date: String) -> Result<Vec<Task>, actix_web::Error> {
+pub fn get_tasks(token: &str, url: &str, from_date: &str, to_date: &str) -> Result<Vec<Task>, HazizzError> {
     let url = format!("https://{}.e-kreta.hu/mapi/api/v1/BejelentettSzamonkeres?DatumTol={}&DatumIg={}",
                       url,
                       from_date,
@@ -122,10 +136,10 @@ pub fn get_tasks(token: String, url: &String, from_date: String, to_date: String
 
     let resp: Vec<UnrefinedTask> = client.get(&url)
         .bearer_auth(token)
-        .send().map_err(create_client_error)?
-        .json().map_err(create_json_error)?;
+        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
+        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
 
-    for unrefined in resp{
+    for unrefined in resp {
         tasks.push(refine_task(unrefined));
     }
 
@@ -137,71 +151,70 @@ pub fn get_tasks(token: String, url: &String, from_date: String, to_date: String
 mod requests_integration_test {
     use super::*;
 
-    fn get_username() -> String{
-        match std::env::var("USERNAME"){
+    fn get_username() -> String {
+        match std::env::var("USERNAME") {
             Ok(username) => username,
             Err(_err) => panic!("Username not specified!"),
         }
     }
 
-    fn get_password() -> String{
-        match std::env::var("PASSWORD"){
+    fn get_password() -> String {
+        match std::env::var("PASSWORD") {
             Ok(password) => password,
             Err(_err) => panic!("Password not specified!"),
         }
     }
 
-    fn get_url() -> String{
-        match std::env::var("SCHOOL_URL"){
+    fn get_url() -> String {
+        match std::env::var("SCHOOL_URL") {
             Ok(school_url) => school_url,
             Err(_err) => panic!("School url not specified!"),
         }
     }
 
-    fn get_token() -> String{
-        create_token(&get_url(), get_username(), get_password()).unwrap().access_token
+    fn get_token() -> String {
+        create_token(&get_url(), &get_username(), &get_password()).unwrap().access_token
     }
 
     #[test]
     fn test_schedules() {
-        let schedules = get_schedule(get_token(), &get_url(), String::from("2019-04-22"), String::from("2019-04-27"));
+        let schedules = get_schedule(&get_token(), &get_url(), "2019-04-22", "2019-04-27");
         assert!(schedules.is_ok());
     }
 
     #[test]
     fn test_schedules_v2() {
-        let schedules = get_schedule_v2(get_token(), &get_url(), String::from("2019-04-22"), String::from("2019-04-27"));
+        let schedules = get_schedule_v2(&get_token(), &get_url(), "2019-04-22", "2019-04-27");
         assert!(schedules.is_ok());
     }
 
     #[test]
     fn test_grades() {
-        let grades = get_grades(get_token(), &get_url());
+        let grades = get_grades(&get_token(), &get_url());
         assert!(grades.is_ok());
     }
 
     #[test]
-    fn test_schools(){
+    fn test_schools() {
         let schools = get_schools();
         println!("Schools: {:?}", &schools);
     }
 
     #[test]
-    fn test_tasks(){
-        let tasks = get_tasks(get_token(), &get_url(), String::from("2019-06-02"), String::from("2019-06-10"));
+    fn test_tasks() {
+        let tasks = get_tasks(&get_token(), &get_url(), "2019-06-02", "2019-06-10");
         assert!(tasks.is_ok());
     }
 
     #[test]
-    fn test_notes(){
-        let notes = get_notes(get_token(), &get_url());
+    fn test_notes() {
+        let notes = get_notes(&get_token(), &get_url());
         assert!(notes.is_ok());
     }
 
     #[test]
-    fn test_averages(){
-        let averages = get_averages(get_token(), &get_url());
+    fn test_averages() {
+        let averages = get_averages(&get_token(), &get_url());
         assert!(averages.is_ok());
     }
-
 }
