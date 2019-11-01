@@ -37,17 +37,23 @@ pub enum HazizzError {
 impl actix_web::error::ResponseError for HazizzError {
     fn render_response(&self) -> HttpResponse {
         match self {
-            HazizzError::KretaBadResponse(err)
-            => HttpResponse::build(StatusCode::from_u16(500).unwrap())
-                .json(ErrorResponse::from_message(21,
-                                                  String::from("Unrecognisable response from kreta server"),
-                                                  err.description().to_string())),
+            HazizzError::KretaBadResponse(err) => HttpResponse::build(
+                StatusCode::from_u16(500).unwrap(),
+            )
+            .json(ErrorResponse::from_message(
+                21,
+                String::from("Unrecognisable response from kreta server"),
+                err.description().to_string(),
+            )),
 
-            HazizzError::KretaRequestSendFailed(err)
-            => HttpResponse::build(StatusCode::from_u16(500).unwrap())
-                .json(ErrorResponse::from_message(20,
-                                                  String::from("Request failed"),
-                                                  err.description().to_string())),
+            HazizzError::KretaRequestSendFailed(err) => HttpResponse::build(
+                StatusCode::from_u16(500).unwrap(),
+            )
+            .json(ErrorResponse::from_message(
+                20,
+                String::from("Request failed"),
+                err.description().to_string(),
+            )),
         }
     }
 }

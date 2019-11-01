@@ -10,21 +10,21 @@ echo -e "[Webhook]: Sending webhook to Discord...\\n";
 case $1 in
   "success" )
     EMBED_COLOR=3066993
-    STATUS = "Successful"
+    STATUS="Successful"
     STATUS_MESSAGE="Tests were successful!"
     AVATAR="https://travis-ci.org/images/logos/TravisCI-Mascot-2.png"
     ;;
 
   "failure" )
     EMBED_COLOR=15158332
-    STATUS = "Failure"
+    STATUS="Failure"
     STATUS_MESSAGE="Test failed"
     AVATAR="https://travis-ci.org/images/logos/TravisCI-Mascot-red.png"
     ;;
 
   * )
     EMBED_COLOR=0
-    STATUS = "Unknown"
+    STATUS="Unknown"
     STATUS_MESSAGE="Status Unknown?"
     AVATAR="https://travis-ci.org/images/logos/TravisCI-Mascot-1.png"
     ;;

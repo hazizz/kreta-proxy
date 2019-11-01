@@ -1,39 +1,55 @@
 use reqwest::header::{HeaderMap, HeaderValue};
 
 use crate::*;
-use crate::resources::*;
 
-pub fn create_token(url: &str, username: &str, password: &str) -> Result<Authentication, HazizzError> {
+pub fn create_token(
+    url: &str,
+    username: &str,
+    password: &str,
+) -> Result<Authentication, HazizzError> {
     let body = format!("institute_code={}&userName={}&password={}&grant_type=password&client_id=919e0c1c-76a2-4646-a2fb-7085bbbf3c56", url, username, password);
 
     let url = format!("https://{}.e-kreta.hu/idp/api/v1/Token", url);
     let client = reqwest::Client::new();
 
-    let resp: Authentication = client.get(&url)
+    let resp: Authentication = client
+        .get(&url)
         .body(body)
-        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
-        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
+        .send()
+        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
+        .json()
+        .map_err(|err| HazizzError::KretaBadResponse(err))?;
     Ok(resp)
 }
 
 pub fn get_schools() -> Result<Vec<School>, HazizzError> {
     let mut headers = HeaderMap::new();
-    headers.append("apiKey", HeaderValue::from_static("7856d350-1fda-45f5-822d-e1a2f3f1acf0"));
+    headers.append(
+        "apiKey",
+        HeaderValue::from_static("7856d350-1fda-45f5-822d-e1a2f3f1acf0"),
+    );
 
     let client = reqwest::Client::new();
 
-    let request = client.get("https://kretaglobalmobileapi.ekreta.hu/api/v1/Institute")
+    let request = client
+        .get("https://kretaglobalmobileapi.ekreta.hu/api/v1/Institute")
         .headers(headers);
 
     let schools: Vec<School> = request
-        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
-        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
+        .send()
+        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
+        .json()
+        .map_err(|err| HazizzError::KretaBadResponse(err))?;
 
     Ok(schools)
 }
 
-pub fn get_schedule_v2(token: &str, url: &str, from_date: &str, to_date: &str)
-                       -> Result<BTreeMap<String, Vec<Lesson>>, HazizzError> {
+pub fn get_schedule_v2(
+    token: &str,
+    url: &str,
+    from_date: &str,
+    to_date: &str,
+) -> Result<BTreeMap<String, Vec<Lesson>>, HazizzError> {
     let lessons: Vec<Lesson> = get_schedule(token, &url, from_date, to_date)?;
     let mut lessons_sorted: BTreeMap<String, Vec<Lesson>> = BTreeMap::new();
 
@@ -47,25 +63,35 @@ pub fn get_schedule_v2(token: &str, url: &str, from_date: &str, to_date: &str)
     Ok(lessons_sorted)
 }
 
-pub fn get_schedule(token: &str, url: &str, from_date: &str, to_date: &str) -> Result<Vec<Lesson>, HazizzError> {
-    let url = format!("https://{}.e-kreta.hu/mapi/api/v1/Lesson?fromDate={}&toDate={}", url, from_date, to_date);
+pub fn get_schedule(
+    token: &str,
+    url: &str,
+    from_date: &str,
+    to_date: &str,
+) -> Result<Vec<Lesson>, HazizzError> {
+    let url = format!(
+        "https://{}.e-kreta.hu/mapi/api/v1/Lesson?fromDate={}&toDate={}",
+        url, from_date, to_date
+    );
     let client = reqwest::Client::new();
 
-    let resp: Vec<UnrefinedLesson> = client.get(&url)
+    let resp: Vec<UnrefinedLesson> = client
+        .get(&url)
         .bearer_auth(token)
-        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
-        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
+        .send()
+        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
+        .json()
+        .map_err(|err| HazizzError::KretaBadResponse(err))?;
 
     let mut lessons: Vec<Lesson> = Vec::new();
 
     for unrefined in resp {
-        let refined = refine_schedule(unrefined);
+        let refined = unrefined.refine();
         lessons.push(refined);
     }
 
     Ok(lessons)
 }
-
 
 pub fn get_grades(token: &str, url: &str) -> Result<BTreeMap<String, Vec<Grade>>, HazizzError> {
     let mut grades: BTreeMap<String, Vec<Grade>> = BTreeMap::new();
@@ -74,8 +100,7 @@ pub fn get_grades(token: &str, url: &str) -> Result<BTreeMap<String, Vec<Grade>>
     let profile = get_profile(token, &url)?;
 
     for grade in profile.evaluations {
-        let refined = refine_grades(grade);
-
+        let refined = grade.refine();
         let vec = grades.entry(refined.subject.clone()).or_insert(Vec::new());
 
         subjects.push(refined.subject.clone());
@@ -95,7 +120,7 @@ pub fn get_notes(token: &str, url: &str) -> Result<Vec<Note>, HazizzError> {
     let profile = get_profile(token, &url)?;
 
     for note in profile.notes {
-        let refined = refine_note(note);
+        let refined = note.refine();
         notes.push(refined);
     }
 
@@ -108,44 +133,54 @@ pub fn get_averages(token: &str, url: &str) -> Result<Vec<Average>, HazizzError>
     let profile = get_profile(token, &url)?;
 
     for average in profile.subject_averages {
-        let refined = refine_average(average);
+        let refined = average.refine();
         averages.push(refined);
     }
 
     Ok(averages)
 }
 
-fn get_profile(token: &str, url: &str) -> Result<UnrefinedProfile, HazizzError> {
+pub fn get_profile(token: &str, url: &str) -> Result<UnrefinedProfile, HazizzError> {
     let url = format!("https://{}.e-kreta.hu/mapi/api/v1/Student", url);
     let client = reqwest::Client::new();
-    let profile: UnrefinedProfile = client.get(&url)
+    let profile: UnrefinedProfile = client
+        .get(&url)
         .bearer_auth(token)
-        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
-        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
+        .send()
+        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
+        .json()
+        .map_err(|err| HazizzError::KretaBadResponse(err))?;
     return Ok(profile);
 }
 
-pub fn get_tasks(token: &str, url: &str, from_date: &str, to_date: &str) -> Result<Vec<Task>, HazizzError> {
-    let url = format!("https://{}.e-kreta.hu/mapi/api/v1/BejelentettSzamonkeres?DatumTol={}&DatumIg={}",
-                      url,
-                      from_date,
-                      to_date);
+pub fn get_tasks(
+    token: &str,
+    url: &str,
+    from_date: &str,
+    to_date: &str,
+) -> Result<Vec<Task>, HazizzError> {
+    let url = format!(
+        "https://{}.e-kreta.hu/mapi/api/v1/BejelentettSzamonkeres?DatumTol={}&DatumIg={}",
+        url, from_date, to_date
+    );
     let client = reqwest::Client::new();
 
     let mut tasks: Vec<Task> = Vec::new();
 
-    let resp: Vec<UnrefinedTask> = client.get(&url)
+    let resp: Vec<UnrefinedTask> = client
+        .get(&url)
         .bearer_auth(token)
-        .send().map_err(|err| { HazizzError::KretaRequestSendFailed(err) })?
-        .json().map_err(|err| { HazizzError::KretaBadResponse(err) })?;
+        .send()
+        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
+        .json()
+        .map_err(|err| HazizzError::KretaBadResponse(err))?;
 
     for unrefined in resp {
-        tasks.push(refine_task(unrefined));
+        tasks.push(unrefined.refine());
     }
 
     Ok(tasks)
 }
-
 
 #[cfg(test)]
 mod requests_integration_test {
@@ -173,7 +208,9 @@ mod requests_integration_test {
     }
 
     fn get_token() -> String {
-        create_token(&get_url(), &get_username(), &get_password()).unwrap().access_token
+        create_token(&get_url(), &get_username(), &get_password())
+            .unwrap()
+            .access_token
     }
 
     #[test]

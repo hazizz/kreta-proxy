@@ -49,36 +49,50 @@ pub struct Lesson {
     topic: String,
 }
 
-pub fn refine_schedule(unrefined: UnrefinedLesson) -> Lesson {
-    Lesson {
-        period_number: unrefined.count,
-        cancelled: unrefined.state_name.contains("Elmaradt"),
-        stand_in: unrefined.teacher.contains("Helyettes"),
-        class_name: unrefined.class_group,
-        teacher: {
-            if unrefined.teacher.contains("Helyettes") {
-                let words: Vec<&str> = unrefined.teacher.split(":").collect();
-                words.get(1).expect("Expected a TEACHER after split")
-                    .trim().to_string()
-            } else {
-                unrefined.teacher
-            }
-        },
-        subject: unrefined.nev,
-        date: {
-            let words: Vec<&str> = unrefined.date.split("T").collect();
-            words.get(0).expect("Expected a date before the T").to_string()
-        },
-        start_of_class: {
-            let words: Vec<&str> = unrefined.start_time.split("T").collect();
-            words.get(1).expect("Expected a time after the T").to_string()
-        },
-        end_of_class: {
-            let words: Vec<&str> = unrefined.end_time.split("T").collect();
-            words.get(1).expect("Expected a time after the T").to_string()
-        },
-        room: unrefined.class_room,
-        topic: unrefined.theme,
+impl UnrefinedLesson {
+    pub fn refine(self) -> Lesson {
+        Lesson {
+            period_number: self.count,
+            cancelled: self.state_name.contains("Elmaradt"),
+            stand_in: self.teacher.contains("Helyettes"),
+            class_name: self.class_group,
+            teacher: {
+                if self.teacher.contains("Helyettes") {
+                    let words: Vec<&str> = self.teacher.split(":").collect();
+                    words
+                        .get(1)
+                        .expect("Expected a TEACHER after split")
+                        .trim()
+                        .to_string()
+                } else {
+                    self.teacher
+                }
+            },
+            subject: self.nev,
+            date: {
+                let words: Vec<&str> = self.date.split("T").collect();
+                words
+                    .get(0)
+                    .expect("Expected a date before the T")
+                    .to_string()
+            },
+            start_of_class: {
+                let words: Vec<&str> = self.start_time.split("T").collect();
+                words
+                    .get(1)
+                    .expect("Expected a time after the T")
+                    .to_string()
+            },
+            end_of_class: {
+                let words: Vec<&str> = self.end_time.split("T").collect();
+                words
+                    .get(1)
+                    .expect("Expected a time after the T")
+                    .to_string()
+            },
+            room: self.class_room,
+            topic: self.theme,
+        }
     }
 }
 
@@ -92,6 +106,32 @@ pub struct UnrefinedProfile {
     pub subject_averages: Vec<UnrefinedAverage>,
     pub notes: Vec<UnrefinedNote>,
     pub form_teacher: UnrefinedFormTeacher,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Profile {
+    id: u64,
+    name: String,
+    school_name: String,
+    //grades: Vec<Grade>,
+    //averages: Vec<Average>,
+    //notes: Vec<Note>,
+    form_teacher: FormTeacher,
+}
+
+impl UnrefinedProfile {
+    pub fn refine(self) -> Profile {
+        Profile {
+            name: self.name,
+            school_name: self.institute_name,
+            id: self.student_id,
+            //grades: self.evaluations.iter().map(|grade| {grade.refine()}).collect(),
+            //averages: self.subject_averages.iter().map(|avg| avg.refine()).collect(),
+            //notes: self.notes.iter().map(|note| note.refine()).collect(),
+            form_teacher: self.form_teacher.refine(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -120,27 +160,33 @@ pub struct Grade {
     topic: String,
 }
 
-pub fn refine_grades(unrefined: UnrefinedGrade) -> Grade {
-    Grade {
-        subject: unrefined.subject.unwrap_or("-".to_string()),
-        grade_type: unrefined.r#type,
-        grade: if unrefined.number_value == 0 {
-            unrefined.value
-        } else {
-            format!("{}", unrefined.number_value)
-        },
-        date: {
-            let words: Vec<&str> = unrefined.date.split("T").collect();
-            words.get(0).expect("Expected a date before the T").to_string()
-        },
-        creation_date: {
-            let words: Vec<&str> = unrefined.creating_time.split("T").collect();
-            words.get(0).expect("Expected a date before the T").to_string()
-        },
-        weight: {
-            unrefined.weight.unwrap_or("0".to_string()).replace("%", "").parse().unwrap_or(0)
-        },
-        topic: unrefined.theme.unwrap_or("-".to_string()),
+impl UnrefinedGrade {
+    pub fn refine(self) -> Grade {
+        Grade {
+            subject: self.subject.unwrap_or("-".to_string()),
+            grade_type: self.r#type,
+            grade: if self.number_value == 0 {
+                self.value
+            } else {
+                format!("{}", self.number_value)
+            },
+            date: {
+                let words: Vec<&str> = self.date.split("T").collect();
+                words
+                    .get(0)
+                    .expect("Expected a date before the T")
+                    .to_string()
+            },
+            creation_date: self.creating_time,
+            weight: {
+                self.weight
+                    .unwrap_or("0".to_string())
+                    .replace("%", "")
+                    .parse()
+                    .unwrap_or(0)
+            },
+            topic: self.theme.unwrap_or("-".to_string()),
+        }
     }
 }
 
@@ -162,12 +208,14 @@ pub struct Average {
     difference: f64,
 }
 
-pub fn refine_average(average: UnrefinedAverage) -> Average {
-    Average {
-        subject: average.subject.clone(),
-        grade: average.value,
-        class_grade: average.class_value,
-        difference: average.difference,
+impl UnrefinedAverage {
+    pub fn refine(self) -> Average {
+        Average {
+            subject: self.subject.clone(),
+            grade: self.value,
+            class_grade: self.class_value,
+            difference: self.difference,
+        }
     }
 }
 
@@ -193,17 +241,16 @@ pub struct Note {
     creation_date: String,
 }
 
-pub fn refine_note(unrefined: UnrefinedNote) -> Note {
-    Note {
-        id: unrefined.note_id,
-        r#type: unrefined.r#type,
-        title: unrefined.title,
-        content: unrefined.content,
-        teacher: unrefined.teacher,
-        creation_date: {
-            let words: Vec<&str> = unrefined.creating_time.split("T").collect();
-            words.get(0).expect("Expected a date before the T").to_string()
-        },
+impl UnrefinedNote {
+    pub fn refine(self) -> Note {
+        Note {
+            id: self.note_id,
+            r#type: self.r#type,
+            title: self.title,
+            content: self.content,
+            teacher: self.teacher,
+            creation_date: self.creating_time,
+        }
     }
 }
 
@@ -224,11 +271,13 @@ pub struct FormTeacher {
     email: String,
 }
 
-pub fn refine_form_teacher(unrefined: UnrefinedFormTeacher) -> FormTeacher {
-    FormTeacher {
-        id: unrefined.teacher_id,
-        name: unrefined.name,
-        email: unrefined.email,
+impl UnrefinedFormTeacher {
+    pub fn refine(self) -> FormTeacher {
+        FormTeacher {
+            id: self.teacher_id,
+            name: self.name,
+            email: self.email,
+        }
     }
 }
 
@@ -256,20 +305,28 @@ pub struct Task {
     creation_date: String,
 }
 
-pub fn refine_task(unrefined: UnrefinedTask) -> Task {
-    Task {
-        date: {
-            let words: Vec<&str> = unrefined.datum.split("T").collect();
-            words.get(0).expect("Expected a date before the T").to_string()
-        },
-        creation_date: {
-            let words: Vec<&str> = unrefined.bejelentes_datuma.split("T").collect();
-            words.get(0).expect("Expected a date before the T").to_string()
-        },
-        subject: unrefined.tantargy,
-        teacher: unrefined.tanar,
-        id: unrefined.id,
-        topic: unrefined.szamonkeres_megnevezese,
-        grade_type: unrefined.szamonkeres_modja,
+impl UnrefinedTask {
+    pub fn refine(self) -> Task {
+        Task {
+            date: {
+                let words: Vec<&str> = self.datum.split("T").collect();
+                words
+                    .get(0)
+                    .expect("Expected a date before the T")
+                    .to_string()
+            },
+            creation_date: {
+                let words: Vec<&str> = self.bejelentes_datuma.split("T").collect();
+                words
+                    .get(0)
+                    .expect("Expected a date before the T")
+                    .to_string()
+            },
+            subject: self.tantargy,
+            teacher: self.tanar,
+            id: self.id,
+            topic: self.szamonkeres_megnevezese,
+            grade_type: self.szamonkeres_modja,
+        }
     }
 }
