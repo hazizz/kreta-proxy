@@ -30,7 +30,7 @@ pub struct UnrefinedLesson {
     class_group: String,
     teacher: String,
     state_name: String,
-    theme: String,
+    theme: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -46,7 +46,7 @@ pub struct Lesson {
     class_name: String,
     teacher: String,
     room: String,
-    topic: String,
+    topic: Option<String>,
 }
 
 impl UnrefinedLesson {
@@ -105,7 +105,7 @@ pub struct UnrefinedProfile {
     pub evaluations: Vec<UnrefinedGrade>,
     pub subject_averages: Vec<UnrefinedAverage>,
     pub notes: Vec<UnrefinedNote>,
-    pub form_teacher: UnrefinedFormTeacher,
+    pub form_teacher: Option<UnrefinedFormTeacher>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -117,7 +117,7 @@ pub struct Profile {
     //grades: Vec<Grade>,
     //averages: Vec<Average>,
     //notes: Vec<Note>,
-    form_teacher: FormTeacher,
+    form_teacher: Option<FormTeacher>,
 }
 
 impl UnrefinedProfile {
@@ -129,7 +129,7 @@ impl UnrefinedProfile {
             //grades: self.evaluations.iter().map(|grade| {grade.refine()}).collect(),
             //averages: self.subject_averages.iter().map(|avg| avg.refine()).collect(),
             //notes: self.notes.iter().map(|note| note.refine()).collect(),
-            form_teacher: self.form_teacher.refine(),
+            form_teacher: self.form_teacher.map(|form| form.refine()),
         }
     }
 }
@@ -224,8 +224,8 @@ impl UnrefinedAverage {
 pub struct UnrefinedNote {
     note_id: u64,
     r#type: String,
-    title: String,
-    content: String,
+    title: Option<String>,
+    content: Option<String>,
     teacher: String,
     creating_time: String,
 }
@@ -235,8 +235,8 @@ pub struct UnrefinedNote {
 pub struct Note {
     id: u64,
     r#type: String,
-    title: String,
-    content: String,
+    title: Option<String>,
+    content: Option<String>,
     teacher: String,
     creation_date: String,
 }
@@ -259,7 +259,7 @@ impl UnrefinedNote {
 pub struct UnrefinedFormTeacher {
     teacher_id: u64,
     name: String,
-    email: String,
+    email: Option<String>,
     phone_number: Option<String>,
 }
 
@@ -268,7 +268,7 @@ pub struct UnrefinedFormTeacher {
 pub struct FormTeacher {
     id: u64,
     name: String,
-    email: String,
+    email: Option<String>,
 }
 
 impl UnrefinedFormTeacher {
