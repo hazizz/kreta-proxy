@@ -21,16 +21,43 @@ pub struct School {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedLesson {
-    count: u8,
+    #[serde(default)]
+    count: i8,
+    #[serde(default)]
     date: String,
+    #[serde(default)]
     start_time: String,
+    #[serde(default)]
     end_time: String,
+    #[serde(default)]
     nev: String,
+    #[serde(default)]
     class_room: String,
+    #[serde(default)]
     class_group: String,
+    #[serde(default)]
     teacher: String,
+    #[serde(default)]
     state_name: String,
+    #[serde(default)]
     theme: Option<String>,
+}
+
+impl Default for UnrefinedLesson {
+    fn default() -> Self {
+        UnrefinedLesson {
+            count: -1,
+            date: String::from("1999-09-19T00:00:00"),
+            start_time: String::from("1999-09-19T09:00:00"),
+            end_time: String::from("1999-09-19T09:45:00"),
+            nev: String::from("-"),
+            class_room: String::from("-"),
+            class_group: String::from("-"),
+            teacher: String::from("-"),
+            state_name: String::from("-"),
+            theme: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -40,7 +67,7 @@ pub struct Lesson {
     pub date: String,
     start_of_class: String,
     end_of_class: String,
-    period_number: u8,
+    period_number: i8,
     cancelled: bool,
     stand_in: bool,
     class_name: String,
@@ -99,13 +126,34 @@ impl UnrefinedLesson {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedProfile {
+    #[serde(default)]
     name: String,
+    #[serde(default)]
     institute_name: String,
+    #[serde(default)]
     student_id: u64,
+    #[serde(default)]
     pub evaluations: Vec<UnrefinedGrade>,
+    #[serde(default)]
     pub subject_averages: Vec<UnrefinedAverage>,
+    #[serde(default)]
     pub notes: Vec<UnrefinedNote>,
+    #[serde(default)]
     pub form_teacher: Option<UnrefinedFormTeacher>,
+}
+
+impl Default for UnrefinedProfile {
+    fn default() -> Self {
+        UnrefinedProfile {
+            name: String::from("-"),
+            institute_name: String::from("-"),
+            student_id: 0,
+            evaluations: Vec::new(),
+            subject_averages: Vec::new(),
+            notes: Vec::new(),
+            form_teacher: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -140,12 +188,34 @@ pub struct UnrefinedGrade {
     subject: Option<String>,
     theme: Option<String>,
     weight: Option<String>,
+    #[serde(default)]
     r#type: String,
+    #[serde(default)]
     number_value: u8,
+    #[serde(default)]
     value: String,
+    #[serde(default)]
     teacher: String,
+    #[serde(default)]
     date: String,
+    #[serde(default)]
     creating_time: String,
+}
+
+impl Default for UnrefinedGrade {
+    fn default() -> Self {
+        UnrefinedGrade {
+            subject: None,
+            theme: None,
+            weight: None,
+            r#type: String::from("-"),
+            number_value: 0,
+            value: String::from("-"),
+            teacher: String::from("-"),
+            date: String::from("1999-09-19T00:00:00"),
+            creating_time: String::from("1999-09-19T00:00:00"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -193,10 +263,25 @@ impl UnrefinedGrade {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedAverage {
+    #[serde(default)]
     subject: String,
+    #[serde(default)]
     value: f64,
+    #[serde(default)]
     class_value: f64,
+    #[serde(default)]
     difference: f64,
+}
+
+impl Default for UnrefinedAverage {
+    fn default() -> Self {
+        UnrefinedAverage {
+            subject: String::from("-"),
+            value: 0.0,
+            class_value: 0.0,
+            difference: 0.0,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -222,12 +307,28 @@ impl UnrefinedAverage {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedNote {
+    #[serde(default)]
     note_id: u64,
     r#type: String,
+    #[serde(default)]
     title: Option<String>,
+    #[serde(default)]
     content: Option<String>,
-    teacher: String,
+    teacher: Option<String>,
     creating_time: String,
+}
+
+impl Default for UnrefinedNote {
+    fn default() -> Self {
+        UnrefinedNote {
+            note_id: 0,
+            r#type: String::from("-"),
+            title: None,
+            content: None,
+            teacher: None,
+            creating_time: String::from("1999-09-19T00:00:00"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -237,7 +338,7 @@ pub struct Note {
     r#type: String,
     title: Option<String>,
     content: Option<String>,
-    teacher: String,
+    teacher: Option<String>,
     creation_date: String,
 }
 
@@ -257,18 +358,31 @@ impl UnrefinedNote {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedFormTeacher {
+    #[serde(default)]
     teacher_id: u64,
-    name: String,
+    name: Option<String>,
     email: Option<String>,
     phone_number: Option<String>,
+}
+
+impl Default for UnrefinedFormTeacher {
+    fn default() -> Self {
+        UnrefinedFormTeacher {
+            teacher_id: 0,
+            r#name: None,
+            email: None,
+            phone_number: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FormTeacher {
     id: u64,
-    name: String,
+    name: Option<String>,
     email: Option<String>,
+    phone_number: Option<String>,
 }
 
 impl UnrefinedFormTeacher {
@@ -277,6 +391,7 @@ impl UnrefinedFormTeacher {
             id: self.teacher_id,
             name: self.name,
             email: self.email,
+            phone_number: self.phone_number,
         }
     }
 }
@@ -284,23 +399,40 @@ impl UnrefinedFormTeacher {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedTask {
+    #[serde(default)]
     id: u64,
+    #[serde(default)]
     datum: String,
+    #[serde(default)]
     bejelentes_datuma: String,
-    tantargy: String,
-    tanar: String,
-    szamonkeres_megnevezese: String,
-    szamonkeres_modja: String,
+    tantargy: Option<String>,
+    tanar: Option<String>,
+    szamonkeres_megnevezese: Option<String>,
+    szamonkeres_modja: Option<String>,
+}
+
+impl Default for UnrefinedTask {
+    fn default() -> Self {
+        UnrefinedTask {
+            id: 0,
+            datum: String::from("1999-09-19T00:00:00"),
+            bejelentes_datuma: String::from("1999-09-19T00:00:00"),
+            tantargy: None,
+            tanar: None,
+            szamonkeres_megnevezese: None,
+            szamonkeres_modja: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Task {
     id: u64,
-    subject: String,
-    topic: String,
-    grade_type: String,
-    teacher: String,
+    subject: Option<String>,
+    topic: Option<String>,
+    grade_type: Option<String>,
+    teacher: Option<String>,
     date: String,
     creation_date: String,
 }
@@ -308,6 +440,7 @@ pub struct Task {
 impl UnrefinedTask {
     pub fn refine(self) -> Task {
         Task {
+            id: self.id,
             date: {
                 let words: Vec<&str> = self.datum.split("T").collect();
                 words
@@ -324,7 +457,6 @@ impl UnrefinedTask {
             },
             subject: self.tantargy,
             teacher: self.tanar,
-            id: self.id,
             topic: self.szamonkeres_megnevezese,
             grade_type: self.szamonkeres_modja,
         }
