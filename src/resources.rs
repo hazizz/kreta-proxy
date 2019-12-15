@@ -21,43 +21,16 @@ pub struct School {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedLesson {
-    #[serde(default)]
     count: i8,
-    #[serde(default)]
-    date: String,
-    #[serde(default)]
-    start_time: String,
-    #[serde(default)]
-    end_time: String,
-    #[serde(default)]
-    nev: String,
-    #[serde(default)]
-    class_room: String,
-    #[serde(default)]
-    class_group: String,
-    #[serde(default)]
-    teacher: String,
-    #[serde(default)]
-    state_name: String,
-    #[serde(default)]
+    date: Option<String>,
+    start_time: Option<String>,
+    end_time: Option<String>,
+    nev: Option<String>,
+    class_room: Option<String>,
+    class_group: Option<String>,
+    teacher: Option<String>,
+    state_name: Option<String>,
     theme: Option<String>,
-}
-
-impl Default for UnrefinedLesson {
-    fn default() -> Self {
-        UnrefinedLesson {
-            count: -1,
-            date: String::from("1999-09-19T00:00:00"),
-            start_time: String::from("1999-09-19T09:00:00"),
-            end_time: String::from("1999-09-19T09:45:00"),
-            nev: String::from("-"),
-            class_room: String::from("-"),
-            class_group: String::from("-"),
-            teacher: String::from("-"),
-            state_name: String::from("-"),
-            theme: None,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -73,52 +46,53 @@ pub struct Lesson {
     class_name: String,
     teacher: String,
     room: String,
-    topic: Option<String>,
+    topic: String,
 }
 
 impl UnrefinedLesson {
     pub fn refine(self) -> Lesson {
         Lesson {
             period_number: self.count,
-            cancelled: self.state_name.contains("Elmaradt"),
-            stand_in: self.teacher.contains("Helyettes"),
-            class_name: self.class_group,
-            teacher: {
-                if self.teacher.contains("Helyettes") {
-                    let words: Vec<&str> = self.teacher.split(":").collect();
-                    words
-                        .get(1)
-                        .expect("Expected a TEACHER after split")
-                        .trim()
-                        .to_string()
-                } else {
-                    self.teacher
-                }
-            },
-            subject: self.nev,
-            date: {
-                let words: Vec<&str> = self.date.split("T").collect();
-                words
-                    .get(0)
-                    .expect("Expected a date before the T")
-                    .to_string()
-            },
-            start_of_class: {
-                let words: Vec<&str> = self.start_time.split("T").collect();
-                words
-                    .get(1)
-                    .expect("Expected a time after the T")
-                    .to_string()
-            },
-            end_of_class: {
-                let words: Vec<&str> = self.end_time.split("T").collect();
-                words
-                    .get(1)
-                    .expect("Expected a time after the T")
-                    .to_string()
-            },
-            room: self.class_room,
-            topic: self.theme,
+            cancelled: self
+                .state_name
+                .map(|state_name| state_name.contains("Elmaradt"))
+                .unwrap_or(false),
+            stand_in: self
+                .teacher
+                .clone()
+                .map(|teacher| teacher.contains("Helyettes"))
+                .unwrap_or(false),
+            class_name: self.class_group.unwrap_or(String::from("-")),
+            teacher: self
+                .teacher
+                .map(|teacher| {
+                    if teacher.contains("Helyettes") {
+                        let words: Vec<&str> = teacher.split(":").collect();
+                        words
+                            .get(1)
+                            .expect("Expected a TEACHER after split")
+                            .trim()
+                            .to_string()
+                    } else {
+                        teacher
+                    }
+                })
+                .unwrap_or(String::from("-")),
+            subject: self.nev.unwrap_or(String::from("-")),
+            date: self
+                .date
+                .map(strip_time_date_to_date)
+                .unwrap_or(String::from("1999-09-19")),
+            start_of_class: self
+                .start_time
+                .map(strip_time_date_to_time)
+                .unwrap_or(String::from("09:00:00")),
+            end_of_class: self
+                .end_time
+                .map(strip_time_date_to_time)
+                .unwrap_or(String::from("09:45:00")),
+            room: self.class_room.unwrap_or(String::from("-")),
+            topic: self.theme.unwrap_or(String::from("-")),
         }
     }
 }
@@ -126,34 +100,13 @@ impl UnrefinedLesson {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedProfile {
-    #[serde(default)]
-    name: String,
-    #[serde(default)]
-    institute_name: String,
-    #[serde(default)]
+    name: Option<String>,
+    institute_name: Option<String>,
     student_id: u64,
-    #[serde(default)]
-    pub evaluations: Vec<UnrefinedGrade>,
-    #[serde(default)]
-    pub subject_averages: Vec<UnrefinedAverage>,
-    #[serde(default)]
-    pub notes: Vec<UnrefinedNote>,
-    #[serde(default)]
+    pub evaluations: Option<Vec<UnrefinedGrade>>,
+    pub subject_averages: Option<Vec<UnrefinedAverage>>,
+    pub notes: Option<Vec<UnrefinedNote>>,
     pub form_teacher: Option<UnrefinedFormTeacher>,
-}
-
-impl Default for UnrefinedProfile {
-    fn default() -> Self {
-        UnrefinedProfile {
-            name: String::from("-"),
-            institute_name: String::from("-"),
-            student_id: 0,
-            evaluations: Vec::new(),
-            subject_averages: Vec::new(),
-            notes: Vec::new(),
-            form_teacher: None,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -162,21 +115,48 @@ pub struct Profile {
     id: u64,
     name: String,
     school_name: String,
-    //grades: Vec<Grade>,
-    //averages: Vec<Average>,
-    //notes: Vec<Note>,
+    pub grades: Vec<Grade>,
+    pub averages: Vec<Average>,
+    pub notes: Vec<Note>,
     form_teacher: Option<FormTeacher>,
 }
 
 impl UnrefinedProfile {
     pub fn refine(self) -> Profile {
         Profile {
-            name: self.name,
-            school_name: self.institute_name,
+            name: self.name.unwrap_or(String::from("-")),
+            school_name: self.institute_name.unwrap_or(String::from("-")),
             id: self.student_id,
-            //grades: self.evaluations.iter().map(|grade| {grade.refine()}).collect(),
-            //averages: self.subject_averages.iter().map(|avg| avg.refine()).collect(),
-            //notes: self.notes.iter().map(|note| note.refine()).collect(),
+            grades: self
+                .evaluations
+                .map(|evaluations| {
+                    let mut refined = Vec::new();
+                    for x in evaluations {
+                        refined.push(x.refine());
+                    }
+                    refined
+                })
+                .unwrap_or(Vec::new()),
+            averages: self
+                .subject_averages
+                .map(|averages| {
+                    let mut refined = Vec::new();
+                    for x in averages {
+                        refined.push(x.refine());
+                    }
+                    refined
+                })
+                .unwrap_or(Vec::new()),
+            notes: self
+                .notes
+                .map(|notes| {
+                    let mut refined = Vec::new();
+                    for x in notes {
+                        refined.push(x.refine());
+                    }
+                    refined
+                })
+                .unwrap_or(Vec::new()),
             form_teacher: self.form_teacher.map(|form| form.refine()),
         }
     }
@@ -188,34 +168,12 @@ pub struct UnrefinedGrade {
     subject: Option<String>,
     theme: Option<String>,
     weight: Option<String>,
-    #[serde(default)]
-    r#type: String,
-    #[serde(default)]
+    r#type: Option<String>,
     number_value: u8,
-    #[serde(default)]
-    value: String,
-    #[serde(default)]
-    teacher: String,
-    #[serde(default)]
-    date: String,
-    #[serde(default)]
-    creating_time: String,
-}
-
-impl Default for UnrefinedGrade {
-    fn default() -> Self {
-        UnrefinedGrade {
-            subject: None,
-            theme: None,
-            weight: None,
-            r#type: String::from("-"),
-            number_value: 0,
-            value: String::from("-"),
-            teacher: String::from("-"),
-            date: String::from("1999-09-19T00:00:00"),
-            creating_time: String::from("1999-09-19T00:00:00"),
-        }
-    }
+    value: Option<String>,
+    teacher: Option<String>,
+    date: Option<String>,
+    creating_time: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -233,29 +191,25 @@ pub struct Grade {
 impl UnrefinedGrade {
     pub fn refine(self) -> Grade {
         Grade {
-            subject: self.subject.unwrap_or("-".to_string()),
-            grade_type: self.r#type,
+            subject: self.subject.unwrap_or(String::from("-")),
+            grade_type: self.r#type.unwrap_or(String::from("-")),
             grade: if self.number_value == 0 {
-                self.value
+                self.value.unwrap_or(String::from("-"))
             } else {
                 format!("{}", self.number_value)
             },
-            date: {
-                let words: Vec<&str> = self.date.split("T").collect();
-                words
-                    .get(0)
-                    .expect("Expected a date before the T")
-                    .to_string()
-            },
-            creation_date: self.creating_time,
-            weight: {
-                self.weight
-                    .unwrap_or("0".to_string())
-                    .replace("%", "")
-                    .parse()
-                    .unwrap_or(0)
-            },
-            topic: self.theme.unwrap_or("-".to_string()),
+            date: self
+                .date
+                .map(strip_time_date_to_date)
+                .unwrap_or(String::from("1999-09-19")),
+            creation_date: self
+                .creating_time
+                .unwrap_or(String::from("1999-09-19T00:00:00")),
+            weight: self
+                .weight
+                .map(|weight| weight.replace("%", "").parse().unwrap_or(0))
+                .unwrap_or(0),
+            topic: self.theme.unwrap_or(String::from("-")),
         }
     }
 }
@@ -263,25 +217,10 @@ impl UnrefinedGrade {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedAverage {
-    #[serde(default)]
-    subject: String,
-    #[serde(default)]
+    subject: Option<String>,
     value: f64,
-    #[serde(default)]
     class_value: f64,
-    #[serde(default)]
     difference: f64,
-}
-
-impl Default for UnrefinedAverage {
-    fn default() -> Self {
-        UnrefinedAverage {
-            subject: String::from("-"),
-            value: 0.0,
-            class_value: 0.0,
-            difference: 0.0,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -296,7 +235,7 @@ pub struct Average {
 impl UnrefinedAverage {
     pub fn refine(self) -> Average {
         Average {
-            subject: self.subject.clone(),
+            subject: self.subject.unwrap_or(String::from("-")),
             grade: self.value,
             class_grade: self.class_value,
             difference: self.difference,
@@ -307,38 +246,22 @@ impl UnrefinedAverage {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedNote {
-    #[serde(default)]
-    note_id: u64,
-    r#type: String,
-    #[serde(default)]
+    note_id: i64,
+    r#type: Option<String>,
     title: Option<String>,
-    #[serde(default)]
     content: Option<String>,
     teacher: Option<String>,
-    creating_time: String,
-}
-
-impl Default for UnrefinedNote {
-    fn default() -> Self {
-        UnrefinedNote {
-            note_id: 0,
-            r#type: String::from("-"),
-            title: None,
-            content: None,
-            teacher: None,
-            creating_time: String::from("1999-09-19T00:00:00"),
-        }
-    }
+    creating_time: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Note {
-    id: u64,
+    id: i64,
     r#type: String,
-    title: Option<String>,
-    content: Option<String>,
-    teacher: Option<String>,
+    title: String,
+    content: String,
+    teacher: String,
     creation_date: String,
 }
 
@@ -346,11 +269,13 @@ impl UnrefinedNote {
     pub fn refine(self) -> Note {
         Note {
             id: self.note_id,
-            r#type: self.r#type,
-            title: self.title,
-            content: self.content,
-            teacher: self.teacher,
-            creation_date: self.creating_time,
+            r#type: self.r#type.unwrap_or(String::from("-")),
+            title: self.title.unwrap_or(String::from("-")),
+            content: self.content.unwrap_or(String::from("-")),
+            teacher: self.teacher.unwrap_or(String::from("-")),
+            creation_date: self
+                .creating_time
+                .unwrap_or(String::from("1999-09-19T00:00:00")),
         }
     }
 }
@@ -358,40 +283,28 @@ impl UnrefinedNote {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedFormTeacher {
-    #[serde(default)]
-    teacher_id: u64,
+    teacher_id: i64,
     name: Option<String>,
     email: Option<String>,
     phone_number: Option<String>,
-}
-
-impl Default for UnrefinedFormTeacher {
-    fn default() -> Self {
-        UnrefinedFormTeacher {
-            teacher_id: 0,
-            r#name: None,
-            email: None,
-            phone_number: None,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FormTeacher {
-    id: u64,
-    name: Option<String>,
-    email: Option<String>,
-    phone_number: Option<String>,
+    id: i64,
+    name: String,
+    email: String,
+    phone_number: String,
 }
 
 impl UnrefinedFormTeacher {
     pub fn refine(self) -> FormTeacher {
         FormTeacher {
             id: self.teacher_id,
-            name: self.name,
-            email: self.email,
-            phone_number: self.phone_number,
+            name: self.name.unwrap_or(String::from("-")),
+            email: self.email.unwrap_or(String::from("-")),
+            phone_number: self.phone_number.unwrap_or(String::from("-")),
         }
     }
 }
@@ -399,40 +312,23 @@ impl UnrefinedFormTeacher {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnrefinedTask {
-    #[serde(default)]
-    id: u64,
-    #[serde(default)]
-    datum: String,
-    #[serde(default)]
-    bejelentes_datuma: String,
+    id: i64,
+    datum: Option<String>,
+    bejelentes_datuma: Option<String>,
     tantargy: Option<String>,
     tanar: Option<String>,
     szamonkeres_megnevezese: Option<String>,
     szamonkeres_modja: Option<String>,
 }
 
-impl Default for UnrefinedTask {
-    fn default() -> Self {
-        UnrefinedTask {
-            id: 0,
-            datum: String::from("1999-09-19T00:00:00"),
-            bejelentes_datuma: String::from("1999-09-19T00:00:00"),
-            tantargy: None,
-            tanar: None,
-            szamonkeres_megnevezese: None,
-            szamonkeres_modja: None,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Task {
-    id: u64,
-    subject: Option<String>,
-    topic: Option<String>,
-    grade_type: Option<String>,
-    teacher: Option<String>,
+    id: i64,
+    subject: String,
+    topic: String,
+    grade_type: String,
+    teacher: String,
     date: String,
     creation_date: String,
 }
@@ -441,24 +337,34 @@ impl UnrefinedTask {
     pub fn refine(self) -> Task {
         Task {
             id: self.id,
-            date: {
-                let words: Vec<&str> = self.datum.split("T").collect();
-                words
-                    .get(0)
-                    .expect("Expected a date before the T")
-                    .to_string()
-            },
+            date: self
+                .datum
+                .map(strip_time_date_to_date)
+                .unwrap_or(String::from("1999-09-19")),
             creation_date: {
-                let words: Vec<&str> = self.bejelentes_datuma.split("T").collect();
-                words
-                    .get(0)
-                    .expect("Expected a date before the T")
-                    .to_string()
+                self.bejelentes_datuma
+                    .map(strip_time_date_to_date)
+                    .unwrap_or(String::from("1999-09-19"))
             },
-            subject: self.tantargy,
-            teacher: self.tanar,
-            topic: self.szamonkeres_megnevezese,
-            grade_type: self.szamonkeres_modja,
+            subject: self.tantargy.unwrap_or(String::from("-")),
+            teacher: self.tanar.unwrap_or(String::from("-")),
+            topic: self.szamonkeres_megnevezese.unwrap_or(String::from("-")),
+            grade_type: self.szamonkeres_modja.unwrap_or(String::from("-")),
         }
     }
+}
+
+fn strip_time_date_to_date(time_date: String) -> String {
+    let parts: Vec<&str> = time_date.split("T").collect();
+    parts
+        .get(0)
+        .expect("Expected a date before the T")
+        .to_string()
+}
+fn strip_time_date_to_time(time_date: String) -> String {
+    let parts: Vec<&str> = time_date.split("T").collect();
+    parts
+        .get(1)
+        .expect("Expected a date before the T")
+        .to_string()
 }

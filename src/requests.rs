@@ -97,14 +97,13 @@ pub fn get_grades(token: &str, url: &str) -> Result<BTreeMap<String, Vec<Grade>>
     let mut grades: BTreeMap<String, Vec<Grade>> = BTreeMap::new();
     let mut subjects: Vec<String> = Vec::new();
 
-    let profile = get_profile(token, &url)?;
+    let profile = get_profile(token, &url)?.refine();
 
-    for grade in profile.evaluations {
-        let refined = grade.refine();
-        let vec = grades.entry(refined.subject.clone()).or_insert(Vec::new());
+    for grade in profile.grades {
+        let vec = grades.entry(grade.subject.clone()).or_insert(Vec::new());
 
-        subjects.push(refined.subject.clone());
-        vec.push(refined);
+        subjects.push(grade.subject.clone());
+        vec.push(grade);
     }
 
     for (_, val) in grades.iter_mut() {
@@ -115,29 +114,13 @@ pub fn get_grades(token: &str, url: &str) -> Result<BTreeMap<String, Vec<Grade>>
 }
 
 pub fn get_notes(token: &str, url: &str) -> Result<Vec<Note>, HazizzError> {
-    let mut notes: Vec<Note> = Vec::new();
-
-    let profile = get_profile(token, &url)?;
-
-    for note in profile.notes {
-        let refined = note.refine();
-        notes.push(refined);
-    }
-
-    Ok(notes)
+    let profile = get_profile(token, &url)?.refine();
+    Ok(profile.notes)
 }
 
 pub fn get_averages(token: &str, url: &str) -> Result<Vec<Average>, HazizzError> {
-    let mut averages: Vec<Average> = Vec::new();
-
-    let profile = get_profile(token, &url)?;
-
-    for average in profile.subject_averages {
-        let refined = average.refine();
-        averages.push(refined);
-    }
-
-    Ok(averages)
+    let profile = get_profile(token, &url)?.refine();
+    Ok(profile.averages)
 }
 
 pub fn get_profile(token: &str, url: &str) -> Result<UnrefinedProfile, HazizzError> {
@@ -216,42 +199,42 @@ mod requests_integration_test {
     #[test]
     fn test_schedules() {
         let schedules = get_schedule(&get_token(), &get_url(), "2019-04-22", "2019-04-27");
-        assert!(schedules.is_ok());
+        assert!(&schedules.is_ok(), schedules);
     }
 
     #[test]
     fn test_schedules_v2() {
         let schedules = get_schedule_v2(&get_token(), &get_url(), "2019-04-22", "2019-04-27");
-        assert!(schedules.is_ok());
+        assert!(&schedules.is_ok(), schedules);
     }
 
     #[test]
     fn test_grades() {
         let grades = get_grades(&get_token(), &get_url());
-        assert!(grades.is_ok());
+        assert!(&grades.is_ok(), grades);
     }
 
     #[test]
     fn test_schools() {
         let schools = get_schools();
-        println!("Schools: {:?}", &schools);
+        assert!(&schools.is_err(), schools);
     }
 
     #[test]
     fn test_tasks() {
         let tasks = get_tasks(&get_token(), &get_url(), "2019-06-02", "2019-06-10");
-        assert!(tasks.is_ok());
+        assert!(&tasks.is_ok(), tasks);
     }
 
     #[test]
     fn test_notes() {
         let notes = get_notes(&get_token(), &get_url());
-        assert!(notes.is_ok());
+        assert!(&notes.is_ok(), notes);
     }
 
     #[test]
     fn test_averages() {
         let averages = get_averages(&get_token(), &get_url());
-        assert!(averages.is_ok());
+        assert!(&averages.is_ok(), averages);
     }
 }
