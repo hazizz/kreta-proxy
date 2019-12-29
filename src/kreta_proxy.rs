@@ -54,13 +54,15 @@ impl Default for DateBasedQuery {
     }
 }
 
-fn handle_school_request(_req: HttpRequest) -> Result<HttpResponse, HazizzError> {
+async fn handle_school_request(_req: HttpRequest) -> Result<HttpResponse, HazizzError> {
     let schools: Vec<School> = get_schools()?;
 
     Ok(HttpResponse::build(StatusCode::from_u16(200).unwrap()).json(schools))
 }
 
-fn handle_grades_request(query: web::Query<GeneralQuery>) -> Result<HttpResponse, HazizzError> {
+async fn handle_grades_request(
+    query: web::Query<GeneralQuery>,
+) -> Result<HttpResponse, HazizzError> {
     let request_started = Instant::now();
 
     let grades = get_grades(&query.token, &query.url)?;
@@ -74,7 +76,9 @@ fn handle_grades_request(query: web::Query<GeneralQuery>) -> Result<HttpResponse
     Ok(HttpResponse::build(StatusCode::OK).json(grades))
 }
 
-fn handle_notes_request(query: web::Query<GeneralQuery>) -> Result<HttpResponse, HazizzError> {
+async fn handle_notes_request(
+    query: web::Query<GeneralQuery>,
+) -> Result<HttpResponse, HazizzError> {
     let request_started = Instant::now();
 
     let notes = get_notes(&query.token, &query.url)?;
@@ -88,7 +92,9 @@ fn handle_notes_request(query: web::Query<GeneralQuery>) -> Result<HttpResponse,
     Ok(HttpResponse::build(StatusCode::OK).json(notes))
 }
 
-fn handle_averages_request(query: web::Query<GeneralQuery>) -> Result<HttpResponse, HazizzError> {
+async fn handle_averages_request(
+    query: web::Query<GeneralQuery>,
+) -> Result<HttpResponse, HazizzError> {
     let request_started = Instant::now();
 
     let averages = get_averages(&query.token, &query.url)?;
@@ -102,7 +108,7 @@ fn handle_averages_request(query: web::Query<GeneralQuery>) -> Result<HttpRespon
     Ok(HttpResponse::build(StatusCode::OK).json(averages))
 }
 
-fn handle_schedule_request_v2(
+async fn handle_schedule_request_v2(
     query: web::Query<DateBasedQuery>,
 ) -> Result<HttpResponse, HazizzError> {
     let request_started = Instant::now();
@@ -119,7 +125,9 @@ fn handle_schedule_request_v2(
     Ok(HttpResponse::build(StatusCode::OK).json(lessons_sorted))
 }
 
-fn handle_schedule_request(query: web::Query<DateBasedQuery>) -> Result<HttpResponse, HazizzError> {
+async fn handle_schedule_request(
+    query: web::Query<DateBasedQuery>,
+) -> Result<HttpResponse, HazizzError> {
     let request_started = Instant::now();
 
     let lessons: Vec<Lesson> =
@@ -134,7 +142,9 @@ fn handle_schedule_request(query: web::Query<DateBasedQuery>) -> Result<HttpResp
     Ok(HttpResponse::build(StatusCode::OK).json(lessons))
 }
 
-fn handle_tasks_request(query: web::Query<DateBasedQuery>) -> Result<HttpResponse, HazizzError> {
+async fn handle_tasks_request(
+    query: web::Query<DateBasedQuery>,
+) -> Result<HttpResponse, HazizzError> {
     let request_started = Instant::now();
 
     let tasks = get_tasks(&query.token, &query.url, &query.from_date, &query.to_date)?;
@@ -148,7 +158,9 @@ fn handle_tasks_request(query: web::Query<DateBasedQuery>) -> Result<HttpRespons
     Ok(HttpResponse::build(StatusCode::OK).json(tasks))
 }
 
-fn handle_profile_request(query: web::Query<GeneralQuery>) -> Result<HttpResponse, HazizzError> {
+async fn handle_profile_request(
+    query: web::Query<GeneralQuery>,
+) -> Result<HttpResponse, HazizzError> {
     let request_started = Instant::now();
 
     let profile = get_profile(&query.token, &query.url)?.refine();
@@ -162,7 +174,9 @@ fn handle_profile_request(query: web::Query<GeneralQuery>) -> Result<HttpRespons
     Ok(HttpResponse::build(StatusCode::OK).json(profile))
 }
 
-fn handle_create_token(query: web::Query<TokenCreationQuery>) -> Result<HttpResponse, HazizzError> {
+async fn handle_create_token(
+    query: web::Query<TokenCreationQuery>,
+) -> Result<HttpResponse, HazizzError> {
     let request_started = Instant::now();
 
     let lessons_sorted = create_token(&query.url, &query.username, &query.password)?;
@@ -176,7 +190,8 @@ fn handle_create_token(query: web::Query<TokenCreationQuery>) -> Result<HttpResp
     Ok(HttpResponse::build(StatusCode::OK).json(lessons_sorted))
 }
 
-fn main() {
+#[actix_rt::main]
+async fn main() {
     let port: u32 = match std::env::var("SERVER_PORT") {
         Ok(port_string) => match port_string.parse() {
             Ok(port_parsed) => port_parsed,
@@ -199,7 +214,7 @@ fn main() {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    HttpServer::new(|| {
+    let server = HttpServer::new(|| {
         App::new()
             .service(web::resource("/grades").route(web::get().to(handle_grades_request)))
             .service(web::resource("/notes").route(web::get().to(handle_notes_request)))
@@ -214,8 +229,9 @@ fn main() {
     })
     .bind(format!("{}:{}", &address, &port))
     .unwrap()
-    .run()
-    .unwrap();
+    .run();
 
     println!("Server bind to {} with port {}!", &address, &port);
+
+    let _ = server.await;
 }

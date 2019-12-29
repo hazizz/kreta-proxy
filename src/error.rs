@@ -35,7 +35,7 @@ pub enum HazizzError {
 }
 
 impl actix_web::error::ResponseError for HazizzError {
-    fn render_response(&self) -> HttpResponse {
+    fn error_response(&self) -> HttpResponse {
         match self {
             HazizzError::KretaBadResponse(err) => HttpResponse::build(
                 StatusCode::from_u16(500).unwrap(),
