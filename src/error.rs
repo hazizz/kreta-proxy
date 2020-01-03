@@ -27,17 +27,17 @@ impl ErrorResponse {
 }
 
 #[derive(Debug, Display)]
-pub enum HazizzError {
+pub enum KretaError {
     #[display(fmt = "Kreta invalid response!")]
     KretaBadResponse(reqwest::Error),
     #[display(fmt = "Invalid access token!")]
     KretaRequestSendFailed(reqwest::Error),
 }
 
-impl actix_web::error::ResponseError for HazizzError {
+impl actix_web::error::ResponseError for KretaError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            HazizzError::KretaBadResponse(err) => HttpResponse::build(
+            KretaError::KretaBadResponse(err) => HttpResponse::build(
                 StatusCode::from_u16(500).unwrap(),
             )
             .json(ErrorResponse::from_message(
@@ -46,7 +46,7 @@ impl actix_web::error::ResponseError for HazizzError {
                 err.description().to_string(),
             )),
 
-            HazizzError::KretaRequestSendFailed(err) => HttpResponse::build(
+            KretaError::KretaRequestSendFailed(err) => HttpResponse::build(
                 StatusCode::from_u16(500).unwrap(),
             )
             .json(ErrorResponse::from_message(

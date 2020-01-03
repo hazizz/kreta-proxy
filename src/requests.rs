@@ -2,27 +2,21 @@ use reqwest::header::{HeaderMap, HeaderValue};
 
 use crate::*;
 
-pub fn create_token(
+pub async fn create_token(
     url: &str,
     username: &str,
     password: &str,
-) -> Result<Authentication, HazizzError> {
+) -> Result<Authentication, KretaError> {
     let body = format!("institute_code={}&userName={}&password={}&grant_type=password&client_id=919e0c1c-76a2-4646-a2fb-7085bbbf3c56", url, username, password);
 
     let url = format!("https://{}.e-kreta.hu/idp/api/v1/Token", url);
     let client = reqwest::Client::new();
 
-    let resp: Authentication = client
-        .get(&url)
-        .body(body)
-        .send()
-        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
-        .json()
-        .map_err(|err| HazizzError::KretaBadResponse(err))?;
+    let resp: Authentication = parse_body(client.get(&url).body(body).send().await).await?;
     Ok(resp)
 }
 
-pub fn get_schools() -> Result<Vec<School>, HazizzError> {
+pub async fn get_schools() -> Result<Vec<School>, KretaError> {
     let mut headers = HeaderMap::new();
     headers.append(
         "apiKey",
@@ -35,22 +29,18 @@ pub fn get_schools() -> Result<Vec<School>, HazizzError> {
         .get("https://kretaglobalmobileapi.ekreta.hu/api/v1/Institute")
         .headers(headers);
 
-    let schools: Vec<School> = request
-        .send()
-        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
-        .json()
-        .map_err(|err| HazizzError::KretaBadResponse(err))?;
+    let schools: Vec<School> = parse_body(request.send().await).await?;
 
     Ok(schools)
 }
 
-pub fn get_schedule_v2(
-    token: &str,
-    url: &str,
-    from_date: &str,
-    to_date: &str,
-) -> Result<BTreeMap<String, Vec<Lesson>>, HazizzError> {
-    let lessons: Vec<Lesson> = get_schedule(token, &url, from_date, to_date)?;
+pub async fn get_schedule_v2(
+    token: String,
+    url: String,
+    from_date: String,
+    to_date: String,
+) -> Result<BTreeMap<String, Vec<Lesson>>, KretaError> {
+    let lessons: Vec<Lesson> = get_schedule(token, url, from_date, to_date).await?;
     let mut lessons_sorted: BTreeMap<String, Vec<Lesson>> = BTreeMap::new();
 
     for lesson in lessons {
@@ -63,25 +53,20 @@ pub fn get_schedule_v2(
     Ok(lessons_sorted)
 }
 
-pub fn get_schedule(
-    token: &str,
-    url: &str,
-    from_date: &str,
-    to_date: &str,
-) -> Result<Vec<Lesson>, HazizzError> {
+pub async fn get_schedule(
+    token: String,
+    url: String,
+    from_date: String,
+    to_date: String,
+) -> Result<Vec<Lesson>, KretaError> {
     let url = format!(
         "https://{}.e-kreta.hu/mapi/api/v1/Lesson?fromDate={}&toDate={}",
         url, from_date, to_date
     );
     let client = reqwest::Client::new();
 
-    let resp: Vec<UnrefinedLesson> = client
-        .get(&url)
-        .bearer_auth(token)
-        .send()
-        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
-        .json()
-        .map_err(|err| HazizzError::KretaBadResponse(err))?;
+    let resp: Vec<UnrefinedLesson> =
+        parse_body(client.get(&url).bearer_auth(token).send().await).await?;
 
     let mut lessons: Vec<Lesson> = Vec::new();
 
@@ -93,11 +78,14 @@ pub fn get_schedule(
     Ok(lessons)
 }
 
-pub fn get_grades(token: &str, url: &str) -> Result<BTreeMap<String, Vec<Grade>>, HazizzError> {
+pub async fn get_grades(
+    token: &str,
+    url: &str,
+) -> Result<BTreeMap<String, Vec<Grade>>, KretaError> {
     let mut grades: BTreeMap<String, Vec<Grade>> = BTreeMap::new();
     let mut subjects: Vec<String> = Vec::new();
 
-    let profile = get_profile(token, &url)?.refine();
+    let profile = get_profile(token, &url).await?.refine();
 
     for grade in profile.grades {
         let vec = grades.entry(grade.subject.clone()).or_insert(Vec::new());
@@ -113,35 +101,30 @@ pub fn get_grades(token: &str, url: &str) -> Result<BTreeMap<String, Vec<Grade>>
     Ok(grades)
 }
 
-pub fn get_notes(token: &str, url: &str) -> Result<Vec<Note>, HazizzError> {
-    let profile = get_profile(token, &url)?.refine();
+pub async fn get_notes(token: &str, url: &str) -> Result<Vec<Note>, KretaError> {
+    let profile = get_profile(token, &url).await?.refine();
     Ok(profile.notes)
 }
 
-pub fn get_averages(token: &str, url: &str) -> Result<Vec<Average>, HazizzError> {
-    let profile = get_profile(token, &url)?.refine();
+pub async fn get_averages(token: &str, url: &str) -> Result<Vec<Average>, KretaError> {
+    let profile = get_profile(token, &url).await?.refine();
     Ok(profile.averages)
 }
 
-pub fn get_profile(token: &str, url: &str) -> Result<UnrefinedProfile, HazizzError> {
+pub async fn get_profile(token: &str, url: &str) -> Result<UnrefinedProfile, KretaError> {
     let url = format!("https://{}.e-kreta.hu/mapi/api/v1/Student", url);
     let client = reqwest::Client::new();
-    let profile: UnrefinedProfile = client
-        .get(&url)
-        .bearer_auth(token)
-        .send()
-        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
-        .json()
-        .map_err(|err| HazizzError::KretaBadResponse(err))?;
+    let profile: UnrefinedProfile =
+        parse_body(client.get(&url).bearer_auth(token).send().await).await?;
     return Ok(profile);
 }
 
-pub fn get_tasks(
+pub async fn get_tasks(
     token: &str,
     url: &str,
     from_date: &str,
     to_date: &str,
-) -> Result<Vec<Task>, HazizzError> {
+) -> Result<Vec<Task>, KretaError> {
     let url = format!(
         "https://{}.e-kreta.hu/mapi/api/v1/BejelentettSzamonkeres?DatumTol={}&DatumIg={}",
         url, from_date, to_date
@@ -150,19 +133,27 @@ pub fn get_tasks(
 
     let mut tasks: Vec<Task> = Vec::new();
 
-    let resp: Vec<UnrefinedTask> = client
-        .get(&url)
-        .bearer_auth(token)
-        .send()
-        .map_err(|err| HazizzError::KretaRequestSendFailed(err))?
-        .json()
-        .map_err(|err| HazizzError::KretaBadResponse(err))?;
+    let resp: Vec<UnrefinedTask> =
+        parse_body(client.get(&url).bearer_auth(token).send().await).await?;
 
     for unrefined in resp {
         tasks.push(unrefined.refine());
     }
 
     Ok(tasks)
+}
+
+async fn parse_body<T>(result: Result<reqwest::Response, reqwest::Error>) -> Result<T, KretaError>
+where
+    T: serde::de::DeserializeOwned,
+{
+    match result {
+        Err(err) => Err(KretaError::KretaRequestSendFailed(err)),
+        Ok(response) => response
+            .json()
+            .await
+            .map_err(|err| KretaError::KretaBadResponse(err)),
+    }
 }
 
 #[cfg(test)]
@@ -190,51 +181,64 @@ mod requests_integration_test {
         }
     }
 
-    fn get_token() -> String {
+    async fn get_token() -> String {
         create_token(&get_url(), &get_username(), &get_password())
+            .await
             .unwrap()
             .access_token
     }
 
-    #[test]
-    fn test_schedules() {
-        let schedules = get_schedule(&get_token(), &get_url(), "2019-04-22", "2019-04-27");
+    #[tokio::test]
+    async fn test_schedules() {
+        let schedules = get_schedule(
+            get_token().await,
+            get_url(),
+            String::from("2019-04-22"),
+            String::from("2019-04-27"),
+        )
+        .await;
         assert!(&schedules.is_ok(), schedules);
     }
 
-    #[test]
-    fn test_schedules_v2() {
-        let schedules = get_schedule_v2(&get_token(), &get_url(), "2019-04-22", "2019-04-27");
+    #[tokio::test]
+    async fn test_schedules_v2() {
+        let schedules = get_schedule_v2(
+            get_token().await,
+            get_url(),
+            String::from("2019-04-22"),
+            String::from("2019-04-27"),
+        )
+        .await;
         assert!(&schedules.is_ok(), schedules);
     }
 
-    #[test]
-    fn test_grades() {
-        let grades = get_grades(&get_token(), &get_url());
+    #[tokio::test]
+    async fn test_grades() {
+        let grades = get_grades(&get_token().await, &get_url()).await;
         assert!(&grades.is_ok(), grades);
     }
 
-    #[test]
-    fn test_schools() {
-        let schools = get_schools();
+    #[tokio::test]
+    async fn test_schools() {
+        let schools = get_schools().await;
         assert!(&schools.is_err(), schools);
     }
 
-    #[test]
-    fn test_tasks() {
-        let tasks = get_tasks(&get_token(), &get_url(), "2019-06-02", "2019-06-10");
+    #[tokio::test]
+    async fn test_tasks() {
+        let tasks = get_tasks(&get_token().await, &get_url(), "2019-06-02", "2019-06-10").await;
         assert!(&tasks.is_ok(), tasks);
     }
 
-    #[test]
-    fn test_notes() {
-        let notes = get_notes(&get_token(), &get_url());
+    #[tokio::test]
+    async fn test_notes() {
+        let notes = get_notes(&get_token().await, &get_url()).await;
         assert!(&notes.is_ok(), notes);
     }
 
-    #[test]
-    fn test_averages() {
-        let averages = get_averages(&get_token(), &get_url());
+    #[tokio::test]
+    async fn test_averages() {
+        let averages = get_averages(&get_token().await, &get_url()).await;
         assert!(&averages.is_ok(), averages);
     }
 }

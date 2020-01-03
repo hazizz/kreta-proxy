@@ -7,7 +7,7 @@ use http::StatusCode;
 use log::info;
 use serde::Deserialize;
 
-use crate::error::HazizzError;
+use crate::error::KretaError;
 use crate::requests::*;
 use crate::resources::*;
 
@@ -54,18 +54,19 @@ impl Default for DateBasedQuery {
     }
 }
 
-async fn handle_school_request(_req: HttpRequest) -> Result<HttpResponse, HazizzError> {
-    let schools: Vec<School> = get_schools()?;
+async fn handle_school_request(_req: HttpRequest) -> Result<HttpResponse, KretaError> {
+    let schools: Vec<School> = get_schools().await?;
 
     Ok(HttpResponse::build(StatusCode::from_u16(200).unwrap()).json(schools))
 }
 
+#[actix_web::get("/grades")]
 async fn handle_grades_request(
     query: web::Query<GeneralQuery>,
-) -> Result<HttpResponse, HazizzError> {
+) -> Result<HttpResponse, KretaError> {
     let request_started = Instant::now();
 
-    let grades = get_grades(&query.token, &query.url)?;
+    let grades = get_grades(&query.token, &query.url).await?;
 
     info!(
         "Grade request done for {} in {}",
@@ -76,12 +77,11 @@ async fn handle_grades_request(
     Ok(HttpResponse::build(StatusCode::OK).json(grades))
 }
 
-async fn handle_notes_request(
-    query: web::Query<GeneralQuery>,
-) -> Result<HttpResponse, HazizzError> {
+#[actix_web::get("/notes")]
+async fn handle_notes_request(query: web::Query<GeneralQuery>) -> Result<HttpResponse, KretaError> {
     let request_started = Instant::now();
 
-    let notes = get_notes(&query.token, &query.url)?;
+    let notes = get_notes(&query.token, &query.url).await?;
 
     info!(
         "Notes request done for {} in {}",
@@ -92,12 +92,13 @@ async fn handle_notes_request(
     Ok(HttpResponse::build(StatusCode::OK).json(notes))
 }
 
+#[actix_web::get("/averages")]
 async fn handle_averages_request(
     query: web::Query<GeneralQuery>,
-) -> Result<HttpResponse, HazizzError> {
+) -> Result<HttpResponse, KretaError> {
     let request_started = Instant::now();
 
-    let averages = get_averages(&query.token, &query.url)?;
+    let averages = get_averages(&query.token, &query.url).await?;
 
     info!(
         "Averages request done for {} in {}",
@@ -108,13 +109,19 @@ async fn handle_averages_request(
     Ok(HttpResponse::build(StatusCode::OK).json(averages))
 }
 
+#[actix_web::get("/v2/schedules")]
 async fn handle_schedule_request_v2(
     query: web::Query<DateBasedQuery>,
-) -> Result<HttpResponse, HazizzError> {
+) -> Result<HttpResponse, KretaError> {
     let request_started = Instant::now();
 
-    let lessons_sorted =
-        get_schedule_v2(&query.token, &query.url, &query.from_date, &query.to_date)?;
+    let lessons_sorted = get_schedule_v2(
+        query.token.clone(),
+        query.url.clone(),
+        query.from_date.clone(),
+        query.to_date.clone(),
+    )
+    .await?;
 
     info!(
         "Schedule V2 request done for {} in {}",
@@ -125,13 +132,19 @@ async fn handle_schedule_request_v2(
     Ok(HttpResponse::build(StatusCode::OK).json(lessons_sorted))
 }
 
+#[actix_web::get("/schedules")]
 async fn handle_schedule_request(
     query: web::Query<DateBasedQuery>,
-) -> Result<HttpResponse, HazizzError> {
+) -> Result<HttpResponse, KretaError> {
     let request_started = Instant::now();
 
-    let lessons: Vec<Lesson> =
-        get_schedule(&query.token, &query.url, &query.from_date, &query.to_date)?;
+    let lessons: Vec<Lesson> = get_schedule(
+        query.token.clone(),
+        query.url.clone(),
+        query.from_date.clone(),
+        query.to_date.clone(),
+    )
+    .await?;
 
     info!(
         "Schedule request done for {} in {}",
@@ -142,12 +155,13 @@ async fn handle_schedule_request(
     Ok(HttpResponse::build(StatusCode::OK).json(lessons))
 }
 
+#[actix_web::get("/tasks")]
 async fn handle_tasks_request(
     query: web::Query<DateBasedQuery>,
-) -> Result<HttpResponse, HazizzError> {
+) -> Result<HttpResponse, KretaError> {
     let request_started = Instant::now();
 
-    let tasks = get_tasks(&query.token, &query.url, &query.from_date, &query.to_date)?;
+    let tasks = get_tasks(&query.token, &query.url, &query.from_date, &query.to_date).await?;
 
     info!(
         "Tasks request done for {} in {}",
@@ -158,12 +172,13 @@ async fn handle_tasks_request(
     Ok(HttpResponse::build(StatusCode::OK).json(tasks))
 }
 
+#[actix_web::get("/profile")]
 async fn handle_profile_request(
     query: web::Query<GeneralQuery>,
-) -> Result<HttpResponse, HazizzError> {
+) -> Result<HttpResponse, KretaError> {
     let request_started = Instant::now();
 
-    let profile = get_profile(&query.token, &query.url)?.refine();
+    let profile = get_profile(&query.token, &query.url).await?.refine();
 
     info!(
         "Profile request done for {} in {}",
@@ -174,12 +189,13 @@ async fn handle_profile_request(
     Ok(HttpResponse::build(StatusCode::OK).json(profile))
 }
 
+#[actix_web::post("/token")]
 async fn handle_create_token(
     query: web::Query<TokenCreationQuery>,
-) -> Result<HttpResponse, HazizzError> {
+) -> Result<HttpResponse, KretaError> {
     let request_started = Instant::now();
 
-    let lessons_sorted = create_token(&query.url, &query.username, &query.password)?;
+    let lessons_sorted = create_token(&query.url, &query.username, &query.password).await?;
 
     info!(
         "Token creation done for {} in {}",
@@ -216,16 +232,14 @@ async fn main() {
 
     let server = HttpServer::new(|| {
         App::new()
-            .service(web::resource("/grades").route(web::get().to(handle_grades_request)))
-            .service(web::resource("/notes").route(web::get().to(handle_notes_request)))
-            .service(web::resource("/averages").route(web::get().to(handle_averages_request)))
-            .service(web::resource("/schedules").route(web::get().to(handle_schedule_request)))
-            .service(
-                web::resource("/v2/schedules").route(web::get().to(handle_schedule_request_v2)),
-            )
-            .service(web::resource("/tasks").route(web::get().to(handle_tasks_request)))
-            .service(web::resource("/profile").route(web::get().to(handle_profile_request)))
-            .service(web::resource("/token").route(web::post().to(handle_create_token)))
+            .service(handle_grades_request)
+            .service(handle_notes_request)
+            .service(handle_averages_request)
+            .service(handle_schedule_request)
+            .service(handle_schedule_request_v2)
+            .service(handle_tasks_request)
+            .service(handle_profile_request)
+            .service(handle_create_token)
     })
     .bind(format!("{}:{}", &address, &port))
     .unwrap()
