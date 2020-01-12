@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -354,17 +355,30 @@ impl UnrefinedTask {
     }
 }
 
-fn strip_time_date_to_date(time_date: String) -> String {
-    let parts: Vec<&str> = time_date.split("T").collect();
-    parts
-        .get(0)
-        .expect("Expected a date before the T")
-        .to_string()
+fn strip_time_date_to_date(mut time_date: String) -> String {
+    use chrono_tz::Europe::Budapest;
+
+    if !time_date.ends_with("Z") {
+        time_date.push_str("Z");
+    }
+    DateTime::parse_from_rfc3339(&time_date)
+        .map(|date| {
+            let new_date = date.with_timezone(&Budapest);
+            new_date.format("%Y-%m-%d").to_string()
+        })
+        .unwrap()
 }
-fn strip_time_date_to_time(time_date: String) -> String {
-    let parts: Vec<&str> = time_date.split("T").collect();
-    parts
-        .get(1)
-        .expect("Expected a date before the T")
-        .to_string()
+fn strip_time_date_to_time(mut time_date: String) -> String {
+    use chrono::offset::TimeZone;
+    use chrono_tz::Europe::Budapest;
+
+    if !time_date.ends_with("Z") {
+        time_date.push_str("Z");
+    }
+    DateTime::parse_from_rfc3339(&time_date)
+        .map(|date| {
+            let new_date = Budapest.from_local_datetime(&date.naive_local()).unwrap();
+            new_date.format("%H:%M:%S").to_string()
+        })
+        .unwrap()
 }

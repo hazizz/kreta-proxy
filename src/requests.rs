@@ -193,8 +193,8 @@ mod requests_integration_test {
         let schedules = get_schedule(
             get_token().await,
             get_url(),
-            String::from("2019-04-22"),
-            String::from("2019-04-27"),
+            String::from("2020-01-05"),
+            String::from("2020-01-12"),
         )
         .await;
         assert!(&schedules.is_ok(), schedules);
@@ -205,8 +205,8 @@ mod requests_integration_test {
         let schedules = get_schedule_v2(
             get_token().await,
             get_url(),
-            String::from("2019-04-22"),
-            String::from("2019-04-27"),
+            String::from("2020-01-05"),
+            String::from("2020-01-12"),
         )
         .await;
         assert!(&schedules.is_ok(), schedules);
@@ -226,7 +226,7 @@ mod requests_integration_test {
 
     #[tokio::test]
     async fn test_tasks() {
-        let tasks = get_tasks(&get_token().await, &get_url(), "2019-06-02", "2019-06-10").await;
+        let tasks = get_tasks(&get_token().await, &get_url(), "2020-01-20", "2020-01-25").await;
         assert!(&tasks.is_ok(), tasks);
     }
 
