@@ -2,6 +2,13 @@ use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct KretaErrorResponse {
+    pub error: String,
+    pub error_code: String,
+    pub error_description: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Authentication {
     pub access_token: String,
     token_type: String,

@@ -1,5 +1,4 @@
-use std::error::Error;
-
+use crate::resources::KretaErrorResponse;
 use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
 use chrono::Utc;
@@ -32,6 +31,10 @@ pub enum KretaError {
     KretaBadResponse(reqwest::Error),
     #[display(fmt = "Invalid access token!")]
     KretaRequestSendFailed(reqwest::Error),
+    #[display(fmt = "Response couldn't be parsed!")]
+    ParseError(reqwest::Error),
+    #[display(fmt = "Kreta responses with error!")]
+    ErrorResponse(KretaErrorResponse),
 }
 
 impl actix_web::error::ResponseError for KretaError {
@@ -43,7 +46,7 @@ impl actix_web::error::ResponseError for KretaError {
             .json(ErrorResponse::from_message(
                 21,
                 String::from("Unrecognisable response from kreta server"),
-                err.description().to_string(),
+                format!("{}", err),
             )),
 
             KretaError::KretaRequestSendFailed(err) => HttpResponse::build(
@@ -52,7 +55,24 @@ impl actix_web::error::ResponseError for KretaError {
             .json(ErrorResponse::from_message(
                 20,
                 String::from("Request failed"),
-                err.description().to_string(),
+                format!("{}", err),
+            )),
+            KretaError::ParseError(err) => HttpResponse::build(StatusCode::from_u16(500).unwrap())
+                .json(ErrorResponse::from_message(
+                    22,
+                    String::from("Parsing response failed"),
+                    format!("{}", err),
+                )),
+            KretaError::ErrorResponse(response) => HttpResponse::build(
+                StatusCode::from_u16(400).unwrap(),
+            )
+            .json(ErrorResponse::from_message(
+                22,
+                String::from("Kreta error response"),
+                format!(
+                    "error_title={};error_message={};error_code={}",
+                    response.error, response.error_description, response.error_code
+                ),
             )),
         }
     }

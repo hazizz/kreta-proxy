@@ -12,7 +12,15 @@ pub async fn create_token(
     let url = format!("https://{}.e-kreta.hu/idp/api/v1/Token", url);
     let client = reqwest::Client::new();
 
-    let resp: Authentication = parse_body(client.get(&url).body(body).send().await).await?;
+    let resp: Authentication = parse_body(
+        client
+            .get(&url)
+            .header("User-Agent", "Kreta.Ellenorzo/2.9.8.2020012301")
+            .body(body)
+            .send()
+            .await,
+    )
+    .await?;
     Ok(resp)
 }
 
@@ -21,6 +29,10 @@ pub async fn get_schools() -> Result<Vec<School>, KretaError> {
     headers.append(
         "apiKey",
         HeaderValue::from_static("7856d350-1fda-45f5-822d-e1a2f3f1acf0"),
+    );
+    headers.append(
+        "User-Agent",
+        HeaderValue::from_static("Kreta.Ellenorzo/2.9.8.2020012301"),
     );
 
     let client = reqwest::Client::new();
@@ -65,8 +77,15 @@ pub async fn get_schedule(
     );
     let client = reqwest::Client::new();
 
-    let resp: Vec<UnrefinedLesson> =
-        parse_body(client.get(&url).bearer_auth(token).send().await).await?;
+    let resp: Vec<UnrefinedLesson> = parse_body(
+        client
+            .get(&url)
+            .header("User-Agent", "Kreta.Ellenorzo/2.9.8.2020012301")
+            .bearer_auth(token)
+            .send()
+            .await,
+    )
+    .await?;
 
     let mut lessons: Vec<Lesson> = Vec::new();
 
@@ -114,8 +133,15 @@ pub async fn get_averages(token: &str, url: &str) -> Result<Vec<Average>, KretaE
 pub async fn get_profile(token: &str, url: &str) -> Result<UnrefinedProfile, KretaError> {
     let url = format!("https://{}.e-kreta.hu/mapi/api/v1/Student", url);
     let client = reqwest::Client::new();
-    let profile: UnrefinedProfile =
-        parse_body(client.get(&url).bearer_auth(token).send().await).await?;
+    let profile: UnrefinedProfile = parse_body(
+        client
+            .get(&url)
+            .header("User-Agent", "Kreta.Ellenorzo/2.9.8.2020012301")
+            .bearer_auth(token)
+            .send()
+            .await,
+    )
+    .await?;
     return Ok(profile);
 }
 
@@ -133,8 +159,15 @@ pub async fn get_tasks(
 
     let mut tasks: Vec<Task> = Vec::new();
 
-    let resp: Vec<UnrefinedTask> =
-        parse_body(client.get(&url).bearer_auth(token).send().await).await?;
+    let resp: Vec<UnrefinedTask> = parse_body(
+        client
+            .get(&url)
+            .header("User-Agent", "Kreta.Ellenorzo/2.9.8.2020012301")
+            .bearer_auth(token)
+            .send()
+            .await,
+    )
+    .await?;
 
     for unrefined in resp {
         tasks.push(unrefined.refine());
@@ -149,10 +182,21 @@ where
 {
     match result {
         Err(err) => Err(KretaError::KretaRequestSendFailed(err)),
-        Ok(response) => response
-            .json()
-            .await
-            .map_err(|err| KretaError::KretaBadResponse(err)),
+        Ok(response) => {
+            let status_code: reqwest::StatusCode = response.status();
+            if status_code.is_success() {
+                response
+                    .json()
+                    .await
+                    .map_err(|err| KretaError::ParseError(err))
+            } else {
+                let error = response
+                    .json()
+                    .await
+                    .map_err(|err| KretaError::KretaBadResponse(err))?;
+                Err(KretaError::ErrorResponse(error))
+            }
+        }
     }
 }
 
