@@ -172,6 +172,23 @@ async fn handle_tasks_request(
     Ok(HttpResponse::build(StatusCode::OK).json(tasks))
 }
 
+#[actix_web::get("/homework")]
+async fn handle_homework_request(
+    query: web::Query<GeneralQuery>,
+) -> Result<HttpResponse, KretaError> {
+    let request_started = Instant::now();
+
+    let tasks = get_homework(query.token.clone(), query.url.clone()).await?;
+
+    info!(
+        "Homework request done for {} in {}",
+        &query.url,
+        request_started.elapsed().as_millis()
+    );
+
+    Ok(HttpResponse::build(StatusCode::OK).json(tasks))
+}
+
 #[actix_web::get("/profile")]
 async fn handle_profile_request(
     query: web::Query<GeneralQuery>,
@@ -238,6 +255,7 @@ async fn main() {
             .service(handle_schedule_request)
             .service(handle_schedule_request_v2)
             .service(handle_tasks_request)
+            .service(handle_homework_request)
             .service(handle_profile_request)
             .service(handle_create_token)
     })

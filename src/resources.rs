@@ -39,6 +39,7 @@ pub struct UnrefinedLesson {
     teacher: Option<String>,
     state_name: Option<String>,
     theme: Option<String>,
+    teacher_homework_id: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -55,6 +56,7 @@ pub struct Lesson {
     teacher: String,
     room: String,
     topic: String,
+    pub homework_id: Option<i64>,
 }
 
 impl UnrefinedLesson {
@@ -101,6 +103,7 @@ impl UnrefinedLesson {
                 .unwrap_or(String::from("09:45:00")),
             room: self.class_room.unwrap_or(String::from("-")),
             topic: self.theme.unwrap_or(String::from("-")),
+            homework_id: self.teacher_homework_id,
         }
     }
 }
@@ -358,6 +361,48 @@ impl UnrefinedTask {
             teacher: self.tanar.unwrap_or(String::from("-")),
             topic: self.szamonkeres_megnevezese.unwrap_or(String::from("-")),
             grade_type: self.szamonkeres_modja.unwrap_or(String::from("-")),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct UnrefinedHomework {
+    id: i64,
+    feladas_datuma: Option<String>,
+    hatarido: Option<String>,
+    tantargy: Option<String>,
+    rogzito: Option<String>,
+    szoveg: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Homework {
+    id: i64,
+    subject: String,
+    content: String,
+    teacher: String,
+    due_date: String,
+    creation_date: String,
+}
+
+impl UnrefinedHomework {
+    pub fn refine(self) -> Homework {
+        Homework {
+            id: self.id,
+            creation_date: self
+                .feladas_datuma
+                .map(strip_time_date_to_date)
+                .unwrap_or(String::from("1999-09-19")),
+            due_date: {
+                self.hatarido
+                    .map(strip_time_date_to_date)
+                    .unwrap_or(String::from("1999-09-19"))
+            },
+            subject: self.tantargy.unwrap_or(String::from("-")),
+            teacher: self.rogzito.unwrap_or(String::from("-")),
+            content: self.szoveg.unwrap_or(String::from("-")),
         }
     }
 }

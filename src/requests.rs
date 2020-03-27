@@ -2,6 +2,8 @@ use reqwest::header::{HeaderMap, HeaderValue};
 
 use crate::*;
 
+static HEADER: &str = "Kreta";
+
 pub async fn create_token(
     url: &str,
     username: &str,
@@ -15,7 +17,7 @@ pub async fn create_token(
     let resp: Authentication = parse_body(
         client
             .get(&url)
-            .header("User-Agent", "Kreta.Ellenorzo/2.9.8.2020012301")
+            .header("User-Agent", HEADER)
             .body(body)
             .send()
             .await,
@@ -30,10 +32,7 @@ pub async fn get_schools() -> Result<Vec<School>, KretaError> {
         "apiKey",
         HeaderValue::from_static("7856d350-1fda-45f5-822d-e1a2f3f1acf0"),
     );
-    headers.append(
-        "User-Agent",
-        HeaderValue::from_static("Kreta.Ellenorzo/2.9.8.2020012301"),
-    );
+    headers.append("User-Agent", HeaderValue::from_static(HEADER));
 
     let client = reqwest::Client::new();
 
@@ -44,6 +43,59 @@ pub async fn get_schools() -> Result<Vec<School>, KretaError> {
     let schools: Vec<School> = parse_body(request.send().await).await?;
 
     Ok(schools)
+}
+
+pub async fn get_homework(token: String, url: String) -> Result<Vec<Homework>, KretaError> {
+    let now: Date<_> = Utc::now().date();
+    let last_month = if now.month() == 1 {
+        now.with_month(12)
+            .unwrap()
+            .with_year(now.year() - 1)
+            .unwrap()
+    } else {
+        now.with_month(now.month() - 1).unwrap()
+    };
+
+    let schedules = get_schedule(
+        token.clone(),
+        url.clone(),
+        last_month.format("%Y-%m-%d").to_string(),
+        now.format("%Y-%m-%d").to_string(),
+    )
+    .await?;
+
+    let client = reqwest::Client::new();
+
+    let mut homework: Vec<Homework> = Vec::new();
+    let mut unrefined_homework: Vec<UnrefinedHomework> = Vec::new();
+    for schedule in schedules {
+        match schedule.homework_id {
+            Some(id) => {
+                let url = format!(
+                    "https://{}.e-kreta.hu/mapi/api/v1/HaziFeladat/TanarHaziFeladat/{}",
+                    url, id
+                );
+                let resp: Result<UnrefinedHomework, KretaError> = parse_body(
+                    client
+                        .get(&url)
+                        .header("User-Agent", HEADER)
+                        .bearer_auth(&token)
+                        .send()
+                        .await,
+                )
+                .await;
+                match resp {
+                    Ok(hw) => unrefined_homework.push(hw),
+                    Err(_) => {}
+                };
+            }
+            None => {}
+        };
+    }
+    for hw in unrefined_homework {
+        homework.push(hw.refine());
+    }
+    return Ok(homework);
 }
 
 pub async fn get_schedule_v2(
@@ -80,7 +132,7 @@ pub async fn get_schedule(
     let resp: Vec<UnrefinedLesson> = parse_body(
         client
             .get(&url)
-            .header("User-Agent", "Kreta.Ellenorzo/2.9.8.2020012301")
+            .header("User-Agent", HEADER)
             .bearer_auth(token)
             .send()
             .await,
@@ -136,7 +188,7 @@ pub async fn get_profile(token: &str, url: &str) -> Result<UnrefinedProfile, Kre
     let profile: UnrefinedProfile = parse_body(
         client
             .get(&url)
-            .header("User-Agent", "Kreta.Ellenorzo/2.9.8.2020012301")
+            .header("User-Agent", HEADER)
             .bearer_auth(token)
             .send()
             .await,
@@ -162,7 +214,7 @@ pub async fn get_tasks(
     let resp: Vec<UnrefinedTask> = parse_body(
         client
             .get(&url)
-            .header("User-Agent", "Kreta.Ellenorzo/2.9.8.2020012301")
+            .header("User-Agent", HEADER)
             .bearer_auth(token)
             .send()
             .await,
@@ -284,5 +336,11 @@ mod requests_integration_test {
     async fn test_averages() {
         let averages = get_averages(&get_token().await, &get_url()).await;
         assert!(&averages.is_ok(), averages);
+    }
+
+    #[tokio::test]
+    async fn test_homework() {
+        let homework = get_homework(get_token().await, get_url()).await;
+        assert!(&homework.is_ok(), homework);
     }
 }
