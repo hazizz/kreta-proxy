@@ -340,7 +340,7 @@ pub struct Task {
     topic: String,
     grade_type: String,
     teacher: String,
-    date: String,
+    due_date: String,
     creation_date: String,
 }
 
@@ -348,7 +348,7 @@ impl UnrefinedTask {
     pub fn refine(self) -> Task {
         Task {
             id: self.id,
-            date: self
+            due_date: self
                 .datum
                 .map(strip_time_date_to_date)
                 .unwrap_or(String::from("1999-09-19")),
