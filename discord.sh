@@ -72,5 +72,5 @@ WEBHOOK_DATA='{
   } ]
 }'
 
-(curl --fail --progress-bar -A "TravisCI-Webhook" -H Content-Type:application/json -H X-Author:szepfejuede1#5173 -d "${WEBHOOK_DATA//	/ }" "$2" \
+(curl --fail --progress-bar -A "TravisCI-Webhook" -H Content-Type:application/json -H X-Author:sksksksk#5173 -d "${WEBHOOK_DATA//	/ }" "$2" \
   && echo -e "\\n[Webhook]: Successfully sent the webhook.") || echo -e "\\n[Webhook]: Unable to send webhook."
